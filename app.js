@@ -5,6 +5,7 @@ class Square {
         this.color = this.getRandomColor();
         this.rotation = 0;
         this.element = this.createElement();
+		this.completedRotation = false;
         this.update(x, y);
         document.getElementById('container').appendChild(this.element);
     }
@@ -40,35 +41,31 @@ class Square {
     }
 
     // Méthode pour faire tourner le carré de 360° et le supprimer à la fin
-    rotate() {
-        if (this.interval) {
+    rotate(callback) {
+        if (this.interval || this.completedRotation) {
             return;
         }
         this.interval = setInterval(() => {
-            this.rotation += 10;
+            this.rotation += 5;
             this.element.style.transform = 'rotate(' + this.rotation + 'deg)';
             if (this.rotation >= 360) {
-                this.delete();
+				clearInterval(this.interval);
+				this.completedRotation = true;
+				callback(this);
             }
         }, 10);
     }
 
     // Méthode pour supprimer le carré
     delete() {
-        clearInterval(this.interval);
-        this.element.parentNode.removeChild(this.element);
-        let index = squares.indexOf(this);
-        if (index !== -1) {
-            squares.splice(index, 1);
-        }
-        if (squares.length === 0) {
-            document.removeEventListener('dblclick', handleDoubleClick);
-        }
+        this.element.remove()
     }
 }
 
 // On crée un tableau pour stocker les carrés
 let squares = [];
+// On crée un tableau pour les carrée à supprimer
+let squaresRotating = [];
 
 // Fonction pour gérer le clic de la souris
 function handleMouseDown(event) {
@@ -95,7 +92,7 @@ function handleMouseMove(event) {
 }
 
 // Fonction pour gérer le relâchement de la souris
-function handleMouseUp(event) {
+function handleMouseUp() {
     if (squares.length === 0) {
         return;
     }
@@ -112,13 +109,27 @@ function handleMouseUp(event) {
     document.removeEventListener('mouseup', handleMouseUp);
 }
 
+// Supprime tout les carrée si aucun carré n'est en train de tourner
+function deleteAll() {
+	const squareRotating = squaresRotating.find((square) => !square.completedRotation);
+	if (!squareRotating) {
+		squaresRotating.forEach(square => square.delete());
+	}
+	if (squaresRotating.length === 0 && squares.length === 0) {
+		document.removeEventListener('dblclick', handleDoubleClick);
+	}
+}
+
 // Fonction pour gérer le double-clic sur un carré
 function handleDoubleClick(event) {
     if (event.target.classList.contains('square')) {
-        let squaresToRotate = squares.filter(
-            (square) => square.element === event.target
-        );
-        squaresToRotate.forEach((square) => square.rotate());
+       squares.forEach((square, index) => {
+			if (square.element === event.target) {
+				squares.splice(index, 1);
+				squaresRotating.push(square);
+				square.rotate(deleteAll)
+			}
+		});
     }
 }
 
